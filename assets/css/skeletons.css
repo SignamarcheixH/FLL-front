@@ -1,0 +1,10 @@
+@keyframes pulse {
+  0%,
+  100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+.skeleton {
+	animation: pulse infinite ease-in-out 1s;
+	@apply bg-gray-400;
+}

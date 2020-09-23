@@ -12,6 +12,7 @@
 <script>
 import { Word } from '~/api/words'
 export default {
+  layout: 'default',
   data() {
     return {
       word: 'test'

@@ -5,7 +5,9 @@
 ** Default: https://github.com/tailwindcss/tailwindcss/blob/master/stubs/defaultConfig.stub.js
 */
 module.exports = {
-  theme: {},
+  theme: {
+    extend: require('./tailwind.extend.js'),
+  },
   variants: {},
   plugins: [],
   purge: {
