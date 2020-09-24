@@ -1,5 +1,5 @@
 <template>
-  <div class="container px-10 pt-10">
+  <div class="container px-10 pt-10 h-full">
     <div class="flex w-full flex-wrap justify-between">
       <div 
         v-for="letter in alphabet"

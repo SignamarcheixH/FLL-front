@@ -12,7 +12,8 @@
     "@nuxtjs/axios": "^5.12.2",
     "axios": "^0.20.0",
     "jscookie": "^1.1.0",
-    "nuxt": "^2.14.0"
+    "nuxt": "^2.14.0",
+    "vue-typed-js": "^0.1.2"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^2.1.0"
