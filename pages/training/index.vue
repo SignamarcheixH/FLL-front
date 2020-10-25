@@ -1,7 +1,9 @@
 <template>
   <div class="container px-10 pt-10">
     <div class="bg-gray-300 w-full px-10 py-6">
+
       <template v-if="gameData.gameStatus == 'ongoing'">                <!-- Quiz template -->
+        <h2 class="font-bold">Mot n° {{ gameData.currentIndex }} sur {{ this.$store.state.options.nbWords }} </h2><br/>
         <div class="min-h-40">
           <vue-typed-js 
             :show-cursor="false"
@@ -13,12 +15,35 @@
           </vue-typed-js>
         </div>
         <div class="decorated w-full"></div>
-        <div class="mt-20">
-          <button @click="getHint()">Indice</button>
-          <input type="answer" name="answer" class="border border-black" autocomplete="off" v-model="currentWord.answer"/>
-          <button @click="validate()">Valider</button>
-          <div>Mots : {{ gameData.currentIndex }} / {{ this.$store.state.options.nbWords }} </div>
-        </div>
+        <!-- <button @click="getHint()">Indice</button> -->
+        <template v-if="this.$store.state.options.quizType == 'fillWord'">
+          <div class="mt-6">
+            <input 
+              type="answer"
+              name="answer"
+              class="rounded p-2"
+              autocomplete="off"
+              v-model="currentWord.answer"
+              placeholder="Réponse.."
+              @keyup.enter="validateFill()"
+              autofocus/>
+            <button class="rounded-full bg-white text-green-500 py-2 px-4 ml-4" @click="validateFill()">Valider</button>
+            <button class="rounded-full bg-white text-red-500 py-2 px-4 ml-4" @click="validateFill()">Passer</button>
+          </div>
+        </template>
+
+        <template v-if="this.$store.state.options.quizType == 'chooseWord'">
+          <div class="flex mt-10" v-show="gameData.choicesLoaded">
+            <div 
+              v-for="choice in currentWord.wordChoices"
+              class="bg-white rounded-lg mr-6 mb-6 p-8 w-1/4 text-2xl font-bold cursor-pointer word-choice"
+              :class="getCssColor('text')"
+              @click="validateChoose(choice)"
+            >
+              <span>{{ choice }}</span>
+            </div>
+          </div>
+        </template>
       </template>
 
       <template v-if="gameData.gameStatus == 'unstarted'">              <!-- Before quiz template -->
@@ -61,58 +86,67 @@ export default {
         word: '', // the word fetched from the API, used for the quiz
         hint: '', // the word's hint under the form W__rd
         answer: '', // the expected answer
-        question: [], // the word's currentWord.question
+        question: [], // the quiz's question
+        wordChoices: []
       },
       gameData: {
         correct: false,
-        currentIndex: 0,
+        choicesLoaded: false,
+        currentIndex: 1,
         gameStatus: 'unstarted', // unstarted, ongoing or ended
         words: [] // the quiz results containing each word aksed
       }
-
     }
   },
   computed: {
   },
   methods: {
-    getQuestion() {
-      let colorText = this.getCssColor('text')
-      let meanings = this.writeMeanings()
-      let exemple = this.formatExemple()
-
-      let question = [`Nous cherchons un <span class='${ colorText }'>${ this.currentWord.word.grammatical_type_verbose }</span>^1000 <br/> Ce mot signifie <span class='italic'>${ meanings } </span> <br/> Par exemple, dans la phrase ${ exemple }`]
-      this.currentWord.question = question
-    },
     newGame() {
       this.reset()
       this.getWord().then(() => {
         this.gameData.gameStatus = 'ongoing'
       })
     },
+    getQuestion() {
+      let colorText = this.getCssColor('text')
+      let meanings = this.writeMeanings()
+      let exemple = this.formatExemple()
+
+      let question = [`Nous cherchons un <span class='${ colorText }'>${ this.currentWord.word.grammatical_type_verbose }</span>^1000 <br/> Ce mot signifie <span class='italic'>${ meanings } </span> <br/> Par exemple, dans la phrase suivante :<br/> ${ exemple }`]
+      this.currentWord.question = question
+    },
     displayScore() {
       let correct = this.gameData.words.filter((el) => el.correct)
-      return `${ correct.length } : ${ this.$store.state.options.nbWords }`
+      return `${ correct.length } / ${ this.$store.state.options.nbWords }`
     },
     gameHandler() {
-      if(parseInt(this.gameData.currentIndex) == parseInt(this.$store.state.options.nbWords)) { // if that was the last word of the quiz
+      /* Fonction which checks if the question was the last one, and if not, prepare the next one */
+      this.resetQuestion()
+      if(parseInt(this.gameData.currentIndex) == parseInt(this.$store.state.options.nbWords)) { // last word of the quiz case
         this.gameData.gameStatus = 'ended'
-        this.reset()
       } else {
-        this.reset()
         this.getWord().then(() => {
           this.gameData.currentIndex ++
         })
       }
     },
-    reset() {
+    resetQuestion() {
+      /* Reinitialize data for the next quiz question */
       this.gameData.correct = false
       this.currentWord.answer = '',
       this.currentWord.hint = '',
       this.currentWord.word = '',
       this.currentWord.question = []
+      this.currentWord.wordChoices = []
     },
-    validate() {
-      /* Validate the user answer */
+    reset() {
+      /* reinitialize data for a whole new quiz */
+      this.resetQuestion()
+      this.gameData.words = []
+      this.gameData.currentIndex = 1
+    },
+    validateFill() {
+      /* Validate the user answer in the case of a fillWord question */
       this.gameData.correct = this.currentWord.word.word_obj.name.toLowerCase()
       this.gameData.correct = this.gameData.correct.localeCompare(this.currentWord.answer.toLowerCase()) == 0
       this.gameData.words.push({
@@ -121,11 +155,36 @@ export default {
       })
       this.gameHandler()
     },
+    validateChoose(answer) {
+      /* Validate the user answer in the case of a chooseWord question */
+      this.gameData.correct = this.currentWord.word.word_obj.name.toLowerCase()
+      this.gameData.correct = this.gameData.correct.localeCompare(answer.toLowerCase()) == 0
+      this.gameData.words.push({
+        word: this.currentWord.word,
+        correct: this.gameData.correct
+      })
+      this.gameHandler()
+    },
     async getWord() {
-      await Meaning.getRandom().then((response) => {
+      this.gameData.choicesLoaded = false
+      await Meaning.getRandom({ 'limit': 1 }).then((response) => {
         this.currentWord.word = response.data
+        this.currentWord.wordChoices.push(response.data.word_obj.name)
         this.getQuestion()
       })
+      for(let i of 'abc') {
+        await Meaning.getRandom({ 'limit': 1 }).then((response) => {
+          this.currentWord.wordChoices.push(response.data.word_obj.name)
+        })
+      }
+      this.shuffleChoices(this.currentWord.wordChoices)
+      this.gameData.choicesLoaded = true
+    },
+    shuffleChoices() {
+      for (let i = this.currentWord.wordChoices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.currentWord.wordChoices[i], this.currentWord.wordChoices[j]] = [this.currentWord.wordChoices[j], this.currentWord.wordChoices[i]];
+      }
     },
     getHint() {
       let word = this.currentWord.word.word_obj.name.toLowerCase()
@@ -135,6 +194,7 @@ export default {
       }
     },
     formatExemple() {
+      /* Fonction which format the exemple to remove the quizzed word from the exemple sentence  */
       if(this.currentWord.word) {
         let words = this.currentWord.word.exemple_obj[0].sentence.split(" ")
         words.forEach((item, index)=> {
@@ -184,5 +244,11 @@ export default {
       height: 1px;
       @apply block bg-gray-600 my-4;
     }
+  }
+  .word-choice {
+    transition: .2s;
+  }
+  .word-choice:hover {
+    transform: translateY(-10px);
   }
 </style>

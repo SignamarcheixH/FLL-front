@@ -10,8 +10,8 @@ export const Meaning = {
   list (filters) {
     return client.axios.get('meanings/', { params: filters })
   },
-  getRandom() {
-    return client.axios.get('meanings/random')
+  getRandom(filters) {
+    return client.axios.get('meanings/random', { params: filters})
   },
 
   // /* POST */
